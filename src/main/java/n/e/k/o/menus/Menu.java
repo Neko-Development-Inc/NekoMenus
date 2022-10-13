@@ -115,6 +115,17 @@ public class Menu {
         return this;
     }
 
+    public Menu removeReferencedItemByValue(MenuItem item) {
+        for (String key : new ArrayList<>(this.referencedItems.keySet())) {
+            MenuItem refItem = this.referencedItems.get(key);
+            if (refItem == item) {
+                this.referencedItems.remove(key);
+                break;
+            }
+        }
+        return this;
+    }
+
     public INamedContainerProvider build() {
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
@@ -123,6 +134,7 @@ public class Menu {
             if (guiItem == null || guiItem.item == null)
                 continue;
             guiItem.setMenu(this); // Update reference to owner
+            guiItem.setReferencedItems(this); // Update missing references
             Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.item));
             ItemStack stack = new ItemStack(item, guiItem.amount);
             stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
@@ -136,6 +148,7 @@ public class Menu {
                 }
                 display.put("Lore", lore);
             }
+            guiItem.setItemStack(stack);
             inventory.setInventorySlotContents(slot, stack);
         }
         final Menu thisMenu = this;
@@ -150,8 +163,9 @@ public class Menu {
                     case 2:
                         containerType = ContainerType.GENERIC_9X2;
                         break;
-                    case 3:
                     default:
+                        height = 3;
+                    case 3:
                         containerType = ContainerType.GENERIC_9X3;
                         break;
                     case 4:

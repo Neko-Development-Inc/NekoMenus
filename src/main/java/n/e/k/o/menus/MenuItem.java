@@ -6,6 +6,7 @@ import n.e.k.o.menus.utils.ClickActionLambda;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.container.ClickType;
+import net.minecraft.item.ItemStack;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
@@ -21,9 +22,11 @@ public class MenuItem {
     public int slot;
     public boolean clickable;
     public List<String> lore;
-    public Map<ClickAction, String> actions;
-    public List<ClickAction> clickActions;
-    public Map<ClickAction, ClickActionLambda> actionLambdas;
+    private ItemStack itemStack = null;
+    private final Map<ClickAction, String> actions;
+    private final List<ClickAction> clickActions;
+    private final Map<ClickAction, ClickActionLambda> actionLambdas;
+    private final List<String> addToReferencedList;
 
     public static MenuItem builder() {
         return new MenuItem(null, null);
@@ -48,6 +51,7 @@ public class MenuItem {
         this.actions = new HashMap<>();
         this.clickActions = new ArrayList<>();
         this.actionLambdas = new HashMap<>();
+        this.addToReferencedList = new ArrayList<>();
     }
 
     public MenuItem setItem(String item) {
@@ -104,6 +108,15 @@ public class MenuItem {
         return this;
     }
 
+    public MenuItem setItemStack(ItemStack itemStack) {
+        this.itemStack = itemStack;
+        return this;
+    }
+
+    public ItemStack getItemStack() {
+        return this.itemStack;
+    }
+
     public MenuItem setAction(ClickAction key, String action) {
         this.actions.put(key, action);
         return this;
@@ -134,9 +147,29 @@ public class MenuItem {
         return this;
     }
 
+    public MenuItem setAsReferencedItem(String key) {
+        if (this.menu == null)
+            this.addToReferencedList.add(key);
+        else
+            this.menu.setReferencedItem(key, this);
+        return this;
+    }
+
+    public MenuItem removeAsReferencedItem() {
+        this.menu.removeReferencedItemByValue(this);
+        return this;
+    }
+
     public void setMenu(Menu menu) {
         if (this.menu == null)
             this.menu = menu;
+    }
+
+    public void setReferencedItems(Menu menu) {
+        if (!addToReferencedList.isEmpty()) {
+            addToReferencedList.forEach(key -> menu.setReferencedItem(key, this));
+            addToReferencedList.clear();
+        }
     }
 
     private static final Map<String, ClickAction> mapActions = new HashMap<>() {{
@@ -160,6 +193,11 @@ public class MenuItem {
         put(ClickType.SWAP.name() + ".7", ClickAction.SLOT_8);
         put(ClickType.SWAP.name() + ".8", ClickAction.SLOT_9);
     }};
+
+    private static final Map<ClickAction, String> reverseMapActions = new HashMap<>();
+    static {
+        mapActions.forEach((key, value) -> reverseMapActions.put(value, key));
+    }
 
     final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
         final ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
@@ -189,6 +227,19 @@ public class MenuItem {
     public void onSlotClick(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
         if (logger != null)
             logger.info("Action: " + action + ", Player: " + player.getDisplayName().getString());
+    }
+
+    public boolean performClick(ClickAction action, PlayerEntity player) {
+        try {
+            String[] split = reverseMapActions.get(action).split("\\.");
+            ClickType clickType = ClickType.valueOf(split[0]);
+            int dragType = Integer.parseInt(split[1]);
+            this.slotClick(slot, dragType, clickType, player, menu);
+            return true;
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return false;
+        }
     }
 
     public String print() {
