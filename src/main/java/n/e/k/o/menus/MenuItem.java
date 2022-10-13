@@ -7,10 +7,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.container.ClickType;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MenuItem {
 
@@ -24,6 +21,10 @@ public class MenuItem {
     public List<String> lore;
     public Map<ClickAction, String> actions;
 
+    public static MenuItem builder() {
+        return new MenuItem(null);
+    }
+
     public MenuItem() {
         this(null);
     }
@@ -34,40 +35,59 @@ public class MenuItem {
         this.actions = new HashMap<>();
     }
 
-    public void setItem(String item) {
+    public MenuItem setItem(String item) {
         this.item = item;
+        return this;
     }
 
-    public void setVariant(int variant) {
+    public MenuItem setVariant(int variant) {
         this.variant = variant;
+        return this;
     }
 
-    public void setName(String name) {
+    public MenuItem setName(String name) {
         this.name = name;
+        return this;
     }
 
-    public void setAmount(int amount) {
+    public MenuItem setAmount(int amount) {
         this.amount = amount;
+        return this;
     }
 
-    public void setSlot(int slot) {
+    public MenuItem setSlot(int slot) {
         this.slot = slot;
+        return this;
     }
 
-    public void setClickable(boolean clickable) {
+    public MenuItem setClickable(boolean clickable) {
         this.clickable = clickable;
+        return this;
     }
 
-    public void addLore(String lore) {
+    public MenuItem addLore(String lore) {
         this.lore.add(lore);
+        return this;
     }
 
-    public void addLore(List<String> lore) {
+    public MenuItem setLore(String lore) {
+        this.lore = new ArrayList<>(Collections.singletonList(lore));
+        return this;
+    }
+
+    public MenuItem addLore(List<String> lore) {
         this.lore.addAll(lore);
+        return this;
     }
 
-    public void setAction(ClickAction key, String action) {
+    public MenuItem setLore(List<String> lore) {
+        this.lore = new ArrayList<>(lore);
+        return this;
+    }
+
+    public MenuItem setAction(ClickAction key, String action) {
         this.actions.put(key, action);
+        return this;
     }
 
     private static final Map<String, ClickAction> mapActions = new HashMap<>() {{

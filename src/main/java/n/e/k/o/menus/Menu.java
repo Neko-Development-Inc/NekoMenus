@@ -32,27 +32,39 @@ public class Menu {
     public Map<Integer, MenuItem> items;
     public Map<Integer, MenuItem> emptyItems;
 
+    public static Menu builder() {
+        return new Menu();
+    }
+
+    public Menu() {
+        this("");
+    }
+
     public Menu(String id) {
         this.id = id;
         this.items = new HashMap<>();
         this.emptyItems = new HashMap<>();
     }
 
-    public void setTitle(String title) {
+    public Menu setTitle(String title) {
         this.title = title;
+        return this;
     }
 
-    public void setHeight(int height) {
+    public Menu setHeight(int height) {
         if (height < 1) height = 1; else
         if (height > 6) height = 6;
         this.height = height;
+        return this;
     }
-    public void addItem(MenuItem item) {
+    public Menu addItem(MenuItem item) {
         this.items.put(item.slot, item);
+        return this;
     }
 
-    public void addEmptyItem(MenuItem item) {
+    public Menu addEmptyItem(MenuItem item) {
         this.emptyItems.put(item.slot, item);
+        return this;
     }
 
     public INamedContainerProvider build() {
