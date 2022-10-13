@@ -19,8 +19,11 @@ public class MenuItem {
     public int variant;
     public String name = "";
     public int amount = 1;
+    public int minAmount = 1;
+    public int maxAmount = 64;
     public int slot;
     public boolean clickable;
+    public boolean bypassMaxAmount;
     public List<String> lore;
     private ItemStack itemStack = null;
     private final Map<ClickAction, String> actions;
@@ -70,8 +73,60 @@ public class MenuItem {
     }
 
     public MenuItem setAmount(int amount) {
-        this.amount = amount;
+        int newAmount = amount;
+        if (newAmount < minAmount)
+            newAmount = minAmount;
+        else if (newAmount > maxAmount)
+            newAmount = maxAmount;
+        if (itemStack != null) {
+            if (!bypassMaxAmount)
+                newAmount = Math.min(newAmount, Math.min(maxAmount, itemStack.getMaxStackSize()));
+            itemStack.setCount(newAmount);
+        }
+        this.amount = newAmount;
         return this;
+    }
+
+    public MenuItem incrementAmount() {
+        return incrementAmount(1);
+    }
+
+    public MenuItem incrementAmount(int num) {
+        return setAmount(getAmount() + num);
+    }
+
+    public MenuItem decrementAmount() {
+        return decrementAmount(1);
+    }
+
+    public MenuItem decrementAmount(int num) {
+        return setAmount(getAmount() - num);
+    }
+
+    public int getAmount() {
+        return itemStack == null ? this.amount : itemStack.getCount();
+    }
+
+    public MenuItem setMinAmount(int minAmount) {
+        if (minAmount < 1)
+            minAmount = 1;
+        this.minAmount = minAmount;
+        return this;
+    }
+
+    public int getMinAmount() {
+        return minAmount;
+    }
+
+    public MenuItem setMaxAmount(int maxAmount) {
+        this.maxAmount = maxAmount;
+        if (itemStack != null && maxAmount > itemStack.getMaxStackSize())
+            bypassMaxAmount = true;
+        return this;
+    }
+
+    public int getMaxAmount() {
+        return maxAmount;
     }
 
     public MenuItem setSlot(int x, int y) {
@@ -85,6 +140,11 @@ public class MenuItem {
 
     public MenuItem setClickable(boolean clickable) {
         this.clickable = clickable;
+        return this;
+    }
+
+    public MenuItem setBypassMaxAmount(boolean bypassMaxAmount) {
+        this.bypassMaxAmount = bypassMaxAmount;
         return this;
     }
 
@@ -172,6 +232,26 @@ public class MenuItem {
         }
     }
 
+    public void deleteItem() {
+        deleteItem(false);
+    }
+
+    public void deleteItem(boolean fullyRemove) {
+        if (menu != null) {
+            if (itemStack != null) {
+                int tmp = minAmount;
+                minAmount = 0;
+                setAmount(0);
+                minAmount = tmp;
+            }
+            if (fullyRemove) {
+                minAmount = 0;
+                menu.removeItem(this);
+                menu.removeReferencedItemByValue(this);
+            }
+        }
+    }
+
     private static final Map<String, ClickAction> mapActions = new HashMap<>() {{
         put(ClickType.PICKUP.name() + ".0", ClickAction.LEFT);
         put(ClickType.PICKUP.name() + ".1", ClickAction.RIGHT);
@@ -200,23 +280,27 @@ public class MenuItem {
     }
 
     final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
-        final ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
-        if (logger != null)
-            logger.info("slotClick in menu '" + menu.id + "' (" + slotId + ", " + dragType + ", " + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + ", " + clickType.name() + ", '" + player.getDisplayName().getString() + "')");
-        boolean clickActionLambdasHas = actionLambdas.containsKey(clickAction);
-        boolean clickActionsHas = clickActions.contains(clickAction);
-        boolean actionsHas = actions.containsKey(clickAction);
-        if (!clickActionLambdasHas && !clickActionsHas && !actionsHas) {
+        try {
+            final ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
             if (logger != null)
-                logger.info("key '" + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + "' not in action");
-            return;
+                logger.info("slotClick in menu '" + menu.id + "' (" + slotId + ", " + dragType + ", " + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + ", " + clickType.name() + ", '" + player.getDisplayName().getString() + "')");
+            boolean clickActionLambdasHas = actionLambdas.containsKey(clickAction);
+            boolean clickActionsHas = clickActions.contains(clickAction);
+            boolean actionsHas = actions.containsKey(clickAction);
+            if (!clickActionLambdasHas && !clickActionsHas && !actionsHas) {
+                if (logger != null)
+                    logger.info("key '" + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + "' not in action");
+                return;
+            }
+            if (clickActionLambdasHas)
+                this.actionLambdas.get(clickAction).run(clickAction, slotId, player, menu);
+            if (clickActionsHas)
+                this.onSlotClick(clickAction, slotId, dragType, clickType, player, menu);
+            if (actionsHas)
+                this.onSlotClick(actions.get(clickAction), slotId, dragType, clickType, player, menu);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
-        if (clickActionLambdasHas)
-            this.actionLambdas.get(clickAction).run(clickAction, slotId, player, menu);
-        if (clickActionsHas)
-            this.onSlotClick(clickAction, slotId, dragType, clickType, player, menu);
-        if (actionsHas)
-            this.onSlotClick(actions.get(clickAction), slotId, dragType, clickType, player, menu);
     }
 
     public void onSlotClick(ClickAction action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
@@ -244,7 +328,7 @@ public class MenuItem {
 
     public String print() {
         int[] xy = Utils.slotToGrid(slot);
-        return "MenuItem { Item = '" + item + "', Name = '" + name + "', Slot = " + slot + " (" + xy[0] + ", " + xy[1] + "), Amount = " + amount + " }";
+        return "MenuItem { Item = '" + item + "', Name = '" + name + "', Slot = " + slot + " (" + xy[0] + ", " + xy[1] + "), Amount = " + amount + (itemStack == null ? "" : (", MaxAmount = " + itemStack.getMaxStackSize())) + " }";
     }
 
     @Override

@@ -37,7 +37,7 @@ public class CustomChestContainer extends ChestContainer {
         // Execute click event, if it exists for this slot
         if (items.containsKey(slotId)) {
             MenuItem guiItem = items.get(slotId);
-            if (guiItem.clickable)
+            if (guiItem != null && guiItem.clickable)
                 guiItem.slotClick(slotId, dragType, clickType, player, menu);
         }
 
@@ -54,6 +54,15 @@ public class CustomChestContainer extends ChestContainer {
 
     public Menu getMenu() {
         return menu;
+    }
+
+    public void removeItem(int slot) {
+        items.remove(slot);
+        putStackInSlot(slot, new ItemStack(Items.AIR, 0));
+    }
+
+    public void setTitle(String title) {
+        this.menu.setTitle(title);
     }
 
 }

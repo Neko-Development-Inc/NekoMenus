@@ -1,5 +1,6 @@
 package n.e.k.o.menus;
 
+import io.netty.buffer.Unpooled;
 import n.e.k.o.menus.utils.StringColorUtils;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
@@ -14,13 +15,22 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.nbt.ListNBT;
 import net.minecraft.nbt.StringNBT;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraftforge.fml.network.FMLNetworkConstants;
+import net.minecraftforge.fml.network.FMLPlayMessages;
+import net.minecraftforge.fml.network.NetworkDirection;
 import net.minecraftforge.fml.network.NetworkHooks;
+import net.minecraftforge.fml.network.simple.SimpleChannel;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nonnull;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -33,6 +43,7 @@ public class Menu {
     public Map<Integer, MenuItem> items;
     public Map<Integer, MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
+    private CustomChestContainer chestContainer;
 
     public static Menu builder() {
         return new Menu();
@@ -68,11 +79,26 @@ public class Menu {
 
     public Menu addItem(MenuItem item) {
         this.items.put(item.slot, item);
+        ItemStack stack = item.getItemStack();
+        if (this.chestContainer != null && stack != null) {
+            this.chestContainer.putStackInSlot(item.slot, stack);
+        }
         return this;
+    }
+
+    public MenuItem getItem(int x, int y) {
+        return getItem(Utils.gridToSlot(x, y));
+    }
+
+    public MenuItem getItem(int slot) {
+        return this.items.get(slot);
     }
 
     public Menu removeItem(MenuItem item) {
         this.items.remove(item.slot);
+        if (this.chestContainer != null) {
+            this.chestContainer.removeItem(item.slot);
+        }
         return this;
     }
 
@@ -84,6 +110,17 @@ public class Menu {
         removeItem(item);
         item.setSlot(newSlot);
         addItem(item);
+        return this;
+    }
+
+    public Menu swapItems(MenuItem item1, MenuItem item2) {
+        removeItem(item1);
+        removeItem(item2);
+        int tmp = item1.slot;
+        item1.setSlot(item2.slot);
+        item2.setSlot(tmp);
+        addItem(item1);
+        addItem(item2);
         return this;
     }
 
@@ -119,8 +156,7 @@ public class Menu {
         for (String key : new ArrayList<>(this.referencedItems.keySet())) {
             MenuItem refItem = this.referencedItems.get(key);
             if (refItem == item) {
-                this.referencedItems.remove(key);
-                break;
+                return removeReferencedItem(key);
             }
         }
         return this;
@@ -177,7 +213,9 @@ public class Menu {
                     case 6:
                         containerType = ContainerType.GENERIC_9X6;
                 }
-                return new CustomChestContainer(containerType, windowId, playerInventory, inventory, height, items, thisMenu);
+                CustomChestContainer chestContainer = new CustomChestContainer(containerType, windowId, playerInventory, inventory, height, items, thisMenu);
+                thisMenu.setCustomChestContainer(chestContainer);
+                return chestContainer;
             }
             @Nonnull
             @Override
@@ -185,6 +223,10 @@ public class Menu {
                 return StringColorUtils.getColoredString(title);
             }
         };
+    }
+
+    private void setCustomChestContainer(CustomChestContainer chestContainer) {
+        this.chestContainer = chestContainer;
     }
 
     public void open(ServerPlayerEntity player) {
@@ -195,8 +237,8 @@ public class Menu {
         NekoMenus.runLater(() -> NetworkHooks.openGui(player, menu.build()));
     }
 
-    public static void open(INamedContainerProvider menu, ServerPlayerEntity player) {
-        NekoMenus.runLater(() -> NetworkHooks.openGui(player, menu));
+    public static void open(INamedContainerProvider build, ServerPlayerEntity player) {
+        NekoMenus.runLater(() -> NetworkHooks.openGui(player, build));
     }
 
     public String print() {
@@ -206,6 +248,50 @@ public class Menu {
     @Override
     public String toString() {
         return print();
+    }
+
+    private Constructor<?> ctr = null;
+    private Field playChannelField = null;
+
+    public boolean setTitle(ServerPlayerEntity player, String title) {
+        try {
+            Container c = player.openContainer;
+            if (c == null) return true;
+            ContainerType<?> type = c.getType();
+            int id = Registry.MENU.getId(type);
+
+            PacketBuffer extraData = new PacketBuffer(Unpooled.buffer());
+            Consumer<PacketBuffer> extraDataWriter = buff -> {};
+            extraDataWriter.accept(extraData);
+            extraData.readerIndex(0);
+
+            PacketBuffer output = new PacketBuffer(Unpooled.buffer());
+            output.writeVarInt(extraData.readableBytes());
+            output.writeBytes(extraData);
+
+            if (ctr == null) {
+                ctr = FMLPlayMessages.OpenContainer.class.getDeclaredConstructor(Integer.TYPE, Integer.TYPE, ITextComponent.class, PacketBuffer.class);
+                ctr.setAccessible(true);
+            }
+            FMLPlayMessages.OpenContainer msg = (FMLPlayMessages.OpenContainer) ctr.newInstance(id, player.currentWindowId, StringColorUtils.getColoredString(title), output);
+
+            if (playChannelField == null) {
+                playChannelField = FMLNetworkConstants.class.getDeclaredField("playChannel");
+                playChannelField.setAccessible(true);
+            }
+            SimpleChannel playChannel = (SimpleChannel) playChannelField.get(null);
+
+            NetworkManager networkManager = player.connection.getNetworkManager();
+            NetworkDirection direction = NetworkDirection.PLAY_TO_CLIENT;
+
+            playChannel.sendTo(msg, networkManager, direction);
+
+            setTitle(title);
+            return true;
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return false;
+        }
     }
 
     public void testItems() {
