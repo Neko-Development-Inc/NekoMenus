@@ -97,24 +97,34 @@ public class MenuItem {
 
         put(ClickType.QUICK_MOVE.name() + ".0", ClickAction.SHIFT_LEFT);
         put(ClickType.QUICK_MOVE.name() + ".1", ClickAction.SHIFT_RIGHT);
+
+        put(ClickType.PICKUP_ALL.name() + ".0", ClickAction.DOUBLE_LEFT);
+
+        put(ClickType.SWAP.name() + ".0", ClickAction.SLOT_1);
+        put(ClickType.SWAP.name() + ".1", ClickAction.SLOT_2);
+        put(ClickType.SWAP.name() + ".2", ClickAction.SLOT_3);
+        put(ClickType.SWAP.name() + ".3", ClickAction.SLOT_4);
+        put(ClickType.SWAP.name() + ".4", ClickAction.SLOT_5);
+        put(ClickType.SWAP.name() + ".5", ClickAction.SLOT_6);
+        put(ClickType.SWAP.name() + ".6", ClickAction.SLOT_7);
+        put(ClickType.SWAP.name() + ".7", ClickAction.SLOT_8);
+        put(ClickType.SWAP.name() + ".8", ClickAction.SLOT_9);
     }};
 
     final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
-        String key = clickType.name();
-        ClickAction clickAction = ClickAction.get(key);
-        clickAction = mapActions.getOrDefault(key + "." + dragType, clickAction);
+        ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
         if (logger != null)
-            logger.info("slotClick in menu '" + menu.id + "' (" + slotId + ", " + dragType + ", " + clickType.name() + ", '" + player.getDisplayName().getString() + "')");
+            logger.info("slotClick in menu '" + menu.id + "' (" + slotId + ", " + dragType + ", " + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + ", " + clickType.name() + ", '" + player.getDisplayName().getString() + "')");
         if (!actions.containsKey(clickAction)) {
             if (logger != null)
-                logger.info("key '" + clickAction.name() + "' not in action");
+                logger.info("key '" + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + "' not in action");
             return;
         }
         String action = actions.get(clickAction);
-        this.slotClickOverridable(action, slotId, dragType, clickType, player, menu);
+        this.onSlotClick(action, slotId, dragType, clickType, player, menu);
     }
 
-    public void slotClickOverridable(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
+    public void onSlotClick(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
         if (logger != null)
             logger.info("Action: " + action + ", Player: " + player.getDisplayName().getString());
     }
