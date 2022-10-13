@@ -8,6 +8,7 @@ public enum ClickAction {
     SHIFT_LEFT,
     SHIFT_RIGHT,
     DOUBLE_LEFT,
+    Q,
     SLOT_1,
     SLOT_2,
     SLOT_3,

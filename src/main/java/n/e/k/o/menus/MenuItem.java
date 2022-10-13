@@ -99,6 +99,7 @@ public class MenuItem {
         put(ClickType.QUICK_MOVE.name() + ".1", ClickAction.SHIFT_RIGHT);
 
         put(ClickType.PICKUP_ALL.name() + ".0", ClickAction.DOUBLE_LEFT);
+        put(ClickType.THROW.name() + ".0", ClickAction.Q);
 
         put(ClickType.SWAP.name() + ".0", ClickAction.SLOT_1);
         put(ClickType.SWAP.name() + ".1", ClickAction.SLOT_2);
