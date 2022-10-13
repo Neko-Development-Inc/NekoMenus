@@ -20,6 +20,7 @@ public class MenuItem {
     public boolean clickable;
     public List<String> lore;
     public Map<ClickAction, String> actions;
+    public List<ClickAction> clickActions;
 
     public static MenuItem builder() {
         return new MenuItem(null);
@@ -33,6 +34,7 @@ public class MenuItem {
         this.logger = logger;
         this.lore = new ArrayList<>();
         this.actions = new HashMap<>();
+        this.clickActions = new ArrayList<>();
     }
 
     public MenuItem setItem(String item) {
@@ -90,6 +92,11 @@ public class MenuItem {
         return this;
     }
 
+    public MenuItem addClickAction(ClickAction key) {
+        this.clickActions.add(key);
+        return this;
+    }
+
     private static final Map<String, ClickAction> mapActions = new HashMap<>() {{
         put(ClickType.PICKUP.name() + ".0", ClickAction.LEFT);
         put(ClickType.PICKUP.name() + ".1", ClickAction.RIGHT);
@@ -113,21 +120,30 @@ public class MenuItem {
     }};
 
     final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
-        ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
+        final ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
         if (logger != null)
             logger.info("slotClick in menu '" + menu.id + "' (" + slotId + ", " + dragType + ", " + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + ", " + clickType.name() + ", '" + player.getDisplayName().getString() + "')");
-        if (!actions.containsKey(clickAction)) {
+        boolean clickActionsHas = clickActions.contains(clickAction);
+        boolean actionsHas = actions.containsKey(clickAction);
+        if (!clickActionsHas && !actionsHas) {
             if (logger != null)
                 logger.info("key '" + (clickAction == null ? "<clickAction was null>" : clickAction.name()) + "' not in action");
             return;
         }
-        String action = actions.get(clickAction);
-        this.onSlotClick(action, slotId, dragType, clickType, player, menu);
+        if (clickActionsHas)
+            this.onSlotClick(clickAction, slotId, dragType, clickType, player, menu);
+        if (actionsHas)
+            this.onSlotClick(actions.get(clickAction), slotId, dragType, clickType, player, menu);
     }
 
     public void onSlotClick(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
         if (logger != null)
             logger.info("Action: " + action + ", Player: " + player.getDisplayName().getString());
+    }
+
+    public void onSlotClick(ClickAction action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
+        if (logger != null)
+            logger.info("Action: " + action.name() + ", Player: " + player.getDisplayName().getString());
     }
 
     public String print() {
