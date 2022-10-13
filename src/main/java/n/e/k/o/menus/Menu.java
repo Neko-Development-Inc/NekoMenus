@@ -26,8 +26,8 @@ import java.util.function.Consumer;
 public class Menu {
 
     public final String id;
-    public String title;
-    public int height;
+    public String title = "";
+    public int height = 3;
 
     public Map<Integer, MenuItem> items;
     public Map<Integer, MenuItem> emptyItems;
@@ -69,8 +69,9 @@ public class Menu {
 
     public INamedContainerProvider build() {
         Inventory inventory = new Inventory(9 * height);
+        boolean hasEmptyItems = !emptyItems.isEmpty();
         for (int slot = 0, emptySlot = 0; slot < 9 * height; slot++) {
-            MenuItem guiItem = items.getOrDefault(slot, emptyItems.getOrDefault((emptySlot++) % emptyItems.size(), null));
+            MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.getOrDefault((emptySlot++) % emptyItems.size(), null));
             if (guiItem == null || guiItem.item == null)
                 continue;
             Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.item));

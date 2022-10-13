@@ -10,13 +10,14 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Mod("nekomenus")
 public class NekoMenus {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static final Queue<Runnable> runLaterQueue = new PriorityQueue<>();
+    private static final Queue<Runnable> runLaterQueue = new ConcurrentLinkedQueue<>();
 
     public NekoMenus() {
         MinecraftForge.EVENT_BUS.register(this);
