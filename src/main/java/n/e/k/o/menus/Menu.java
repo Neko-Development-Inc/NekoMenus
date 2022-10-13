@@ -1,6 +1,7 @@
 package n.e.k.o.menus;
 
 import n.e.k.o.menus.utils.StringColorUtils;
+import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.entity.player.ServerPlayerEntity;
@@ -31,6 +32,7 @@ public class Menu {
 
     public Map<Integer, MenuItem> items;
     public Map<Integer, MenuItem> emptyItems;
+    public Map<String, MenuItem> referencedItems;
 
     public static Menu builder() {
         return new Menu();
@@ -44,6 +46,7 @@ public class Menu {
         this.id = id;
         this.items = new HashMap<>();
         this.emptyItems = new HashMap<>();
+        this.referencedItems = new HashMap<>();
     }
 
     public Menu setTitle(String title) {
@@ -57,13 +60,58 @@ public class Menu {
         this.height = height;
         return this;
     }
+
+    public Menu setDefaultHeight() {
+        this.height = 3;
+        return this;
+    }
+
     public Menu addItem(MenuItem item) {
         this.items.put(item.slot, item);
         return this;
     }
 
+    public Menu removeItem(MenuItem item) {
+        this.items.remove(item.slot);
+        return this;
+    }
+
+    public Menu moveItem(MenuItem item, int newX, int newY) {
+        return moveItem(item, Utils.gridToSlot(newX, newY));
+    }
+
+    public Menu moveItem(MenuItem item, int newSlot) {
+        removeItem(item);
+        item.setSlot(newSlot);
+        addItem(item);
+        return this;
+    }
+
     public Menu addEmptyItem(MenuItem item) {
         this.emptyItems.put(item.slot, item);
+        return this;
+    }
+
+    public Menu removeEmptyItem(MenuItem item) {
+        this.emptyItems.remove(item.slot);
+        return this;
+    }
+
+    public Menu setReferencedItem(String key, MenuItem item) {
+        this.referencedItems.put(key, item);
+        return this;
+    }
+
+    public boolean hasReferencedItem(String key) {
+        return this.referencedItems.containsKey(key);
+    }
+
+    public MenuItem getReferencedItem(String key) {
+        return this.referencedItems.get(key);
+    }
+
+    public Menu removeReferencedItem(String key) {
+        this.referencedItems.remove(key);
         return this;
     }
 
@@ -74,6 +122,7 @@ public class Menu {
             MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.getOrDefault((emptySlot++) % emptyItems.size(), null));
             if (guiItem == null || guiItem.item == null)
                 continue;
+            guiItem.setMenu(this); // Update reference to owner
             Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.item));
             ItemStack stack = new ItemStack(item, guiItem.amount);
             stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
@@ -83,8 +132,7 @@ public class Menu {
                 for (String str : guiItem.lore) {
                     IFormattableTextComponent colored = StringColorUtils.getColoredString(str);
                     String json = ITextComponent.Serializer.toJson(colored);
-                    StringNBT nbt = StringNBT.valueOf(json);
-                    lore.add(nbt);
+                    lore.add(StringNBT.valueOf(json));
                 }
                 display.put("Lore", lore);
             }

@@ -44,4 +44,16 @@ public class CustomChestContainer extends ChestContainer {
         return deny;
     }
 
+    public int getRows() {
+        return rows;
+    }
+
+    public Map<Integer, MenuItem> getItems() {
+        return items;
+    }
+
+    public Menu getMenu() {
+        return menu;
+    }
+
 }
