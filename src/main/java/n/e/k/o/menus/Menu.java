@@ -2,6 +2,7 @@ package n.e.k.o.menus;
 
 import io.netty.buffer.Unpooled;
 import n.e.k.o.menus.utils.StringColorUtils;
+import n.e.k.o.menus.utils.TaskTimer;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -43,6 +44,7 @@ public class Menu {
     public Map<Integer, MenuItem> items;
     public Map<Integer, MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
+    List<TaskTimer> tasks;
     private CustomChestContainer chestContainer;
 
     public static Menu builder() {
@@ -58,6 +60,7 @@ public class Menu {
         this.items = new HashMap<>();
         this.emptyItems = new HashMap<>();
         this.referencedItems = new HashMap<>();
+        this.tasks = new ArrayList<>();
     }
 
     public Menu setTitle(String title) {
@@ -162,6 +165,11 @@ public class Menu {
         return this;
     }
 
+    public Menu runTaskTimer(Runnable task, int delay, int ticks) {
+        this.tasks.add(new TaskTimer(task, delay, ticks));
+        return this;
+    }
+
     public INamedContainerProvider build() {
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
@@ -215,6 +223,7 @@ public class Menu {
                 }
                 CustomChestContainer chestContainer = new CustomChestContainer(containerType, windowId, playerInventory, inventory, height, items, thisMenu);
                 thisMenu.setCustomChestContainer(chestContainer);
+                chestContainer.onContainerOpen();
                 return chestContainer;
             }
             @Nonnull

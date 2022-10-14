@@ -1,5 +1,7 @@
 package n.e.k.o.menus;
 
+import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import n.e.k.o.menus.utils.TaskTimer;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.IInventory;
@@ -8,6 +10,10 @@ import net.minecraft.inventory.container.ClickType;
 import net.minecraft.inventory.container.ContainerType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.GenericEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
@@ -42,6 +48,24 @@ public class CustomChestContainer extends ChestContainer {
         }
 
         return deny;
+    }
+
+    @SubscribeEvent
+    public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (menu != null && !menu.tasks.isEmpty()) {
+            menu.tasks.forEach(TaskTimer::tick);
+        }
+    }
+
+    public void onContainerOpen() {
+        MinecraftForge.EVENT_BUS.register(this);
+    }
+
+    @Override
+    public void onContainerClosed(@Nonnull PlayerEntity player) {
+        MinecraftForge.EVENT_BUS.unregister(this);
+        super.onContainerClosed(player);
     }
 
     public int getRows() {
