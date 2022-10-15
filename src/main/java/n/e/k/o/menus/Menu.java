@@ -42,7 +42,7 @@ public class Menu {
     public int height = 3;
 
     public Map<Integer, MenuItem> items;
-    public Map<Integer, MenuItem> emptyItems;
+    public List<MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
     List<TaskTimer> tasks;
     private CustomChestContainer chestContainer;
@@ -58,7 +58,7 @@ public class Menu {
     public Menu(String id) {
         this.id = id;
         this.items = new HashMap<>();
-        this.emptyItems = new HashMap<>();
+        this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
         this.tasks = new ArrayList<>();
     }
@@ -128,7 +128,7 @@ public class Menu {
     }
 
     public Menu addEmptyItem(MenuItem item) {
-        this.emptyItems.put(item.slot, item);
+        this.emptyItems.add(item);
         return this;
     }
 
@@ -171,10 +171,11 @@ public class Menu {
     }
 
     public INamedContainerProvider build() {
+        testItems(); // Test all item ids etc
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
         for (int slot = 0, emptySlot = 0; slot < 9 * height; slot++) {
-            MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.getOrDefault((emptySlot++) % emptyItems.size(), null));
+            MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.get((emptySlot++) % emptyItems.size()));
             if (guiItem == null || guiItem.item == null)
                 continue;
             guiItem.setMenu(this); // Update reference to owner
@@ -320,7 +321,7 @@ public class Menu {
                 System.err.println("Didn't find item by name: '" + item.item + "' ('" + itemId + "') in menu (id = '" + id + "') at slot '" + item.slot + "'. The menu may display the wrong item.");
         };
         items.values().forEach(c);
-        emptyItems.values().forEach(c);
+        emptyItems.forEach(c);
         itemCache.clear();
     }
 

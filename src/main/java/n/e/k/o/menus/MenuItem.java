@@ -177,6 +177,14 @@ public class MenuItem {
         return this.itemStack;
     }
 
+    public int getMaxStackSize() {
+        if (this.itemStack != null) {
+            return this.itemStack.getMaxStackSize();
+        } else {
+            return 64;
+        }
+    }
+
     public MenuItem setAction(ClickAction key, String action) {
         this.actions.put(key, action);
         return this;
@@ -293,22 +301,22 @@ public class MenuItem {
                 return;
             }
             if (clickActionLambdasHas)
-                this.actionLambdas.get(clickAction).run(clickAction, slotId, player, menu);
+                this.actionLambdas.get(clickAction).run(clickAction, slotId, player, menu, this);
             if (clickActionsHas)
-                this.onSlotClick(clickAction, slotId, dragType, clickType, player, menu);
+                this.onSlotClick(clickAction, slotId, dragType, clickType, player, menu, this);
             if (actionsHas)
-                this.onSlotClick(actions.get(clickAction), slotId, dragType, clickType, player, menu);
+                this.onSlotClick(actions.get(clickAction), slotId, dragType, clickType, player, menu, this);
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
 
-    public void onSlotClick(ClickAction action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
+    public void onSlotClick(ClickAction action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu, MenuItem item) {
         if (logger != null)
             logger.info("Action: " + action.name() + ", Player: " + player.getDisplayName().getString());
     }
 
-    public void onSlotClick(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
+    public void onSlotClick(String action, int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu, MenuItem item) {
         if (logger != null)
             logger.info("Action: " + action + ", Player: " + player.getDisplayName().getString());
     }
