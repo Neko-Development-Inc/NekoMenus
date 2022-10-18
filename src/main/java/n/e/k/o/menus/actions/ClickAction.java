@@ -1,4 +1,4 @@
-package n.e.k.o.menus.utils;
+package n.e.k.o.menus.actions;
 
 public enum ClickAction {
 

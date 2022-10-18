@@ -1,7 +1,7 @@
-package n.e.k.o.menus.utils;
+package n.e.k.o.menus.actions;
 
-import n.e.k.o.menus.Menu;
-import n.e.k.o.menus.MenuItem;
+import n.e.k.o.menus.menus.Menu;
+import n.e.k.o.menus.menus.MenuItem;
 import net.minecraft.entity.player.PlayerEntity;
 
 @FunctionalInterface

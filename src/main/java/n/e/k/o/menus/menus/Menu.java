@@ -1,6 +1,8 @@
-package n.e.k.o.menus;
+package n.e.k.o.menus.menus;
 
 import io.netty.buffer.Unpooled;
+import n.e.k.o.menus.CustomChestContainer;
+import n.e.k.o.menus.NekoMenus;
 import n.e.k.o.menus.utils.StringColorUtils;
 import n.e.k.o.menus.utils.TaskTimer;
 import n.e.k.o.menus.utils.Utils;
@@ -44,11 +46,19 @@ public class Menu {
     public Map<Integer, MenuItem> items;
     public List<MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
-    List<TaskTimer> tasks;
+    public List<TaskTimer> tasks;
     private CustomChestContainer chestContainer;
 
     public static Menu builder() {
         return new Menu();
+    }
+
+    public static Menu builder(String title, int height) {
+        return new Menu("", title, height);
+    }
+
+    public static Menu builder(String id, String title, int height) {
+        return new Menu(id, title, height);
     }
 
     public Menu() {
@@ -61,6 +71,35 @@ public class Menu {
         this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
         this.tasks = new ArrayList<>();
+    }
+
+    public Menu(String id, String title, int height) {
+        this.id = id;
+        this.title = title;
+        this.height = height;
+        this.items = new HashMap<>();
+        this.emptyItems = new ArrayList<>();
+        this.referencedItems = new HashMap<>();
+        this.tasks = new ArrayList<>();
+    }
+
+    /**
+     * Create a clone of this menu
+     * @return cloned menu
+     */
+    public Menu clone() {
+        Menu clone = new Menu(id, title, height);
+
+        // Clone items
+        items.forEach((slot, item) -> clone.items.put(slot, item.clone(clone)));
+
+        // Clone empty items
+        emptyItems.forEach(item -> clone.emptyItems.add(item.clone(clone)));
+
+        // Clone references
+        referencedItems.forEach((key, item) -> clone.referencedItems.put(key, item.clone(clone)));
+
+        return clone;
     }
 
     public Menu setTitle(String title) {

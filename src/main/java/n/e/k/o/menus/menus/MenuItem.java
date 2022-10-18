@@ -1,19 +1,19 @@
-package n.e.k.o.menus;
+package n.e.k.o.menus.menus;
 
-
-import n.e.k.o.menus.utils.ClickAction;
-import n.e.k.o.menus.utils.ClickActionLambda;
+import n.e.k.o.menus.actions.ClickAction;
+import n.e.k.o.menus.actions.ClickActionLambda;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.container.ClickType;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
 public class MenuItem {
 
-    private Menu menu;
+    public Menu menu;
     private final Logger logger;
     public String item = null;
     public int variant;
@@ -287,7 +287,7 @@ public class MenuItem {
         mapActions.forEach((key, value) -> reverseMapActions.put(value, key));
     }
 
-    final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
+    public final void slotClick(int slotId, int dragType, ClickType clickType, PlayerEntity player, Menu menu) {
         try {
             final ClickAction clickAction = mapActions.get(clickType.name() + "." + dragType);
             if (logger != null)
@@ -342,6 +342,36 @@ public class MenuItem {
     @Override
     public String toString() {
         return print();
+    }
+
+    public MenuItem clone(Menu newOwner) {
+        MenuItem clone = new MenuItem(newOwner, logger);
+
+        clone.item = item;
+        clone.variant = variant;
+        clone.name = name;
+        clone.amount = amount;
+        clone.minAmount = minAmount;
+        clone.maxAmount = maxAmount;
+        clone.slot = slot;
+        clone.clickable = clickable;
+        clone.bypassMaxAmount = bypassMaxAmount;
+        clone.lore = lore;
+
+        if (itemStack != null) {
+            CompoundNBT itemNBT = new CompoundNBT();
+            itemStack.write(itemNBT);
+            clone.itemStack = ItemStack.read(itemNBT);
+        } else {
+            clone.itemStack = null;
+        }
+
+        clone.actions.putAll(actions);
+        clone.clickActions.addAll(clickActions);
+        clone.actionLambdas.putAll(actionLambdas);
+        clone.addToReferencedList.addAll(addToReferencedList);
+
+        return clone;
     }
 
 }
