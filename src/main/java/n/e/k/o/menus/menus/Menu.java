@@ -1,9 +1,9 @@
 package n.e.k.o.menus.menus;
 
-import io.netty.buffer.Unpooled;
 import n.e.k.o.menus.CustomChestContainer;
 import n.e.k.o.menus.NekoMenus;
 import n.e.k.o.menus.utils.StringColorUtils;
+import n.e.k.o.menus.utils.TaskRunLater;
 import n.e.k.o.menus.utils.TaskTimer;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
@@ -18,23 +18,18 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.nbt.ListNBT;
 import net.minecraft.nbt.StringNBT;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.PacketBuffer;
+import net.minecraft.network.play.server.SOpenWindowPacket;
+import net.minecraft.network.play.server.SSetSlotPacket;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.registry.Registry;
 import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraftforge.fml.network.FMLNetworkConstants;
-import net.minecraftforge.fml.network.FMLPlayMessages;
-import net.minecraftforge.fml.network.NetworkDirection;
 import net.minecraftforge.fml.network.NetworkHooks;
-import net.minecraftforge.fml.network.simple.SimpleChannel;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nonnull;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class Menu {
@@ -47,6 +42,9 @@ public class Menu {
     public List<MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
     public List<TaskTimer> tasks;
+    public List<TaskRunLater> runLaters;
+    public List<BiConsumer<Menu, PlayerEntity>> onOpenEvent, onCloseEvent;
+
     private CustomChestContainer chestContainer;
 
     public static Menu builder() {
@@ -70,7 +68,10 @@ public class Menu {
         this.items = new HashMap<>();
         this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
-        this.tasks = new ArrayList<>();
+        this.tasks = new CopyOnWriteArrayList<>();
+        this.runLaters = new CopyOnWriteArrayList<>();
+        this.onOpenEvent = new ArrayList<>();
+        this.onCloseEvent = new ArrayList<>();
     }
 
     public Menu(String id, String title, int height) {
@@ -80,7 +81,10 @@ public class Menu {
         this.items = new HashMap<>();
         this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
-        this.tasks = new ArrayList<>();
+        this.tasks = new CopyOnWriteArrayList<>();
+        this.runLaters = new CopyOnWriteArrayList<>();
+        this.onOpenEvent = new ArrayList<>();
+        this.onCloseEvent = new ArrayList<>();
     }
 
     /**
@@ -99,9 +103,23 @@ public class Menu {
         // Clone references
         referencedItems.forEach((key, item) -> clone.referencedItems.put(key, item.clone(clone)));
 
+        // Clone tasks
+        tasks.forEach(task -> clone.tasks.add(task.clone()));
+
+        // Clone runLaters
+        runLaters.forEach(task -> clone.runLaters.add(task.clone()));
+
+        // Clone open/close event
+        clone.onOpenEvent = onOpenEvent;
+        clone.onCloseEvent = onCloseEvent;
+
         return clone;
     }
 
+    /**
+     * This doesn't change the title in the window AFTER the menu has been opened.
+     * Use `setTitle(player, title)` for that.
+     */
     public Menu setTitle(String title) {
         this.title = title;
         return this;
@@ -209,19 +227,54 @@ public class Menu {
         return this;
     }
 
+    public Menu runTaskTimer(Runnable task, int delay, int ticks, int finishAfterRounds) {
+        this.tasks.add(new TaskTimer(task, delay, ticks, finishAfterRounds));
+        return this;
+    }
+
+    public Menu runTaskLater(Runnable task, int ticks) {
+        this.runLaters.add(new TaskRunLater(task, ticks));
+        return this;
+    }
+
+    public Menu addMenuOpenEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenEvent.add(event);
+        return this;
+    }
+
+    public Menu addMenuCloseEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onCloseEvent.add(event);
+        return this;
+    }
+
+    public Menu removeMenuOpenEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenEvent.remove(event);
+        return this;
+    }
+
+    public Menu removeMenuCloseEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onCloseEvent.remove(event);
+        return this;
+    }
+
     public INamedContainerProvider build() {
         testItems(); // Test all item ids etc
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
         for (int slot = 0, emptySlot = 0; slot < 9 * height; slot++) {
             MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.get((emptySlot++) % emptyItems.size()));
-            if (guiItem == null || guiItem.item == null)
+            if (guiItem == null || (guiItem.itemStr == null && guiItem.item == null))
                 continue;
             guiItem.setMenu(this); // Update reference to owner
             guiItem.setReferencedItems(this); // Update missing references
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.item));
+            Item item;
+            if (guiItem.item != null)
+                item = guiItem.item;
+            else
+                item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.itemStr));
             ItemStack stack = new ItemStack(item, guiItem.amount);
-            stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
+            if (guiItem.name != null && !guiItem.name.isEmpty())
+                stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
             if (!guiItem.lore.isEmpty()) {
                 CompoundNBT display = stack.getOrCreateChildTag("display");
                 ListNBT lore = new ListNBT();
@@ -263,7 +316,7 @@ public class Menu {
                 }
                 CustomChestContainer chestContainer = new CustomChestContainer(containerType, windowId, playerInventory, inventory, height, items, thisMenu);
                 thisMenu.setCustomChestContainer(chestContainer);
-                chestContainer.onContainerOpen();
+                chestContainer.onContainerOpen(player);
                 return chestContainer;
             }
             @Nonnull
@@ -299,56 +352,22 @@ public class Menu {
         return print();
     }
 
-    private Constructor<?> ctr = null;
-    private Field playChannelField = null;
-
-    public boolean setTitle(ServerPlayerEntity player, String title) {
-        try {
-            Container c = player.openContainer;
-            if (c == null) return true;
-            ContainerType<?> type = c.getType();
-            int id = Registry.MENU.getId(type);
-
-            PacketBuffer extraData = new PacketBuffer(Unpooled.buffer());
-            Consumer<PacketBuffer> extraDataWriter = buff -> {};
-            extraDataWriter.accept(extraData);
-            extraData.readerIndex(0);
-
-            PacketBuffer output = new PacketBuffer(Unpooled.buffer());
-            output.writeVarInt(extraData.readableBytes());
-            output.writeBytes(extraData);
-
-            if (ctr == null) {
-                ctr = FMLPlayMessages.OpenContainer.class.getDeclaredConstructor(Integer.TYPE, Integer.TYPE, ITextComponent.class, PacketBuffer.class);
-                ctr.setAccessible(true);
-            }
-            FMLPlayMessages.OpenContainer msg = (FMLPlayMessages.OpenContainer) ctr.newInstance(id, player.currentWindowId, StringColorUtils.getColoredString(title), output);
-
-            if (playChannelField == null) {
-                playChannelField = FMLNetworkConstants.class.getDeclaredField("playChannel");
-                playChannelField.setAccessible(true);
-            }
-            SimpleChannel playChannel = (SimpleChannel) playChannelField.get(null);
-
-            NetworkManager networkManager = player.connection.getNetworkManager();
-            NetworkDirection direction = NetworkDirection.PLAY_TO_CLIENT;
-
-            playChannel.sendTo(msg, networkManager, direction);
-
-            setTitle(title);
-            return true;
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return false;
-        }
+    public void updateTitle(ServerPlayerEntity player, String title) {
+        updateTitle(player, title, false);
+    }
+    public void updateTitle(ServerPlayerEntity player, String title, boolean insideTask) {
+        setTitle(title);
+        player.connection.sendPacket(new SOpenWindowPacket(chestContainer.windowId, chestContainer.getType(), StringColorUtils.getColoredString(title)));
+        if (insideTask)
+            chestContainer.inventorySlots.forEach(slot -> player.connection.sendPacket(new SSetSlotPacket(chestContainer.windowId, slot.slotNumber, slot.getStack())));
     }
 
     public void testItems() {
         Map<String, Item> itemCache = new HashMap<>();
         Consumer<MenuItem> c = item -> {
-            if (item.item == null)
+            if (item.itemStr == null || item.item != null)
                 return;
-            String itemId = item.item.toLowerCase();
+            String itemId = item.itemStr.toLowerCase();
             Item _item;
             if (itemCache.containsKey(itemId))
                 _item = itemCache.get(itemId);
@@ -357,7 +376,7 @@ public class Menu {
                 itemCache.put(itemId, _item);
             }
             if (_item == null)
-                System.err.println("Didn't find item by name: '" + item.item + "' ('" + itemId + "') in menu (id = '" + id + "') at slot '" + item.slot + "'. The menu may display the wrong item.");
+                System.err.println("Didn't find item by name: '" + item.itemStr + "' ('" + itemId + "') in menu (id = '" + id + "') at slot '" + item.slot + "'. The menu may display the wrong item.");
         };
         items.values().forEach(c);
         emptyItems.forEach(c);

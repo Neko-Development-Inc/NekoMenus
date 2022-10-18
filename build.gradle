@@ -2,9 +2,8 @@ plugins {
     id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
-
 group = 'n.e.k.o'
-version = '1.0.0-dev'
+version = '1.0.2-dev'
 
 java {
     archivesBaseName = 'NekoMenus'

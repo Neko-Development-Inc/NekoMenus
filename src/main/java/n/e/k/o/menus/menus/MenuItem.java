@@ -5,8 +5,10 @@ import n.e.k.o.menus.actions.ClickActionLambda;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.container.ClickType;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.text.TranslationTextComponent;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
@@ -15,9 +17,10 @@ public class MenuItem {
 
     public Menu menu;
     private final Logger logger;
-    public String item = null;
+    public String itemStr = null;
+    public Item item = null;
     public int variant;
-    public String name = "";
+    public String name = null;
     public int amount = 1;
     public int minAmount = 1;
     public int maxAmount = 64;
@@ -57,8 +60,15 @@ public class MenuItem {
         this.addToReferencedList = new ArrayList<>();
     }
 
-    public MenuItem setItem(String item) {
+    public MenuItem setItem(Item item) {
+        var regName = item.getRegistryName();
+        this.itemStr = regName == null ? null : regName.toString();
         this.item = item;
+        return this;
+    }
+
+    public MenuItem setItem(String itemStr) {
+        this.itemStr = itemStr;
         return this;
     }
 
@@ -140,6 +150,16 @@ public class MenuItem {
 
     public MenuItem setClickable(boolean clickable) {
         this.clickable = clickable;
+        return this;
+    }
+
+    public MenuItem enableClicking() {
+        this.clickable = true;
+        return this;
+    }
+
+    public MenuItem disableClicking() {
+        this.clickable = false;
         return this;
     }
 
@@ -336,7 +356,7 @@ public class MenuItem {
 
     public String print() {
         int[] xy = Utils.slotToGrid(slot);
-        return "MenuItem { Item = '" + item + "', Name = '" + name + "', Slot = " + slot + " (" + xy[0] + ", " + xy[1] + "), Amount = " + amount + (itemStack == null ? "" : (", MaxAmount = " + itemStack.getMaxStackSize())) + " }";
+        return "MenuItem { Item = '" + itemStr + "', Name = '" + name + "', Slot = " + slot + " (" + xy[0] + ", " + xy[1] + "), Amount = " + amount + (itemStack == null ? "" : (", MaxAmount = " + itemStack.getMaxStackSize())) + " }";
     }
 
     @Override
@@ -347,6 +367,7 @@ public class MenuItem {
     public MenuItem clone(Menu newOwner) {
         MenuItem clone = new MenuItem(newOwner, logger);
 
+        clone.itemStr = itemStr;
         clone.item = item;
         clone.variant = variant;
         clone.name = name;
@@ -358,13 +379,10 @@ public class MenuItem {
         clone.bypassMaxAmount = bypassMaxAmount;
         clone.lore = lore;
 
-        if (itemStack != null) {
-            CompoundNBT itemNBT = new CompoundNBT();
-            itemStack.write(itemNBT);
-            clone.itemStack = ItemStack.read(itemNBT);
-        } else {
+        if (itemStack != null)
+            clone.itemStack = itemStack.copy();
+        else
             clone.itemStack = null;
-        }
 
         clone.actions.putAll(actions);
         clone.clickActions.addAll(clickActions);

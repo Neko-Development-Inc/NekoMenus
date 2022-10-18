@@ -2,7 +2,6 @@ package n.e.k.o.menus;
 
 import n.e.k.o.menus.menus.Menu;
 import n.e.k.o.menus.menus.MenuItem;
-import n.e.k.o.menus.utils.TaskTimer;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.IInventory;
@@ -53,19 +52,35 @@ public class CustomChestContainer extends ChestContainer {
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        if (menu != null && !menu.tasks.isEmpty()) {
-            menu.tasks.forEach(TaskTimer::tick);
-        }
+        if (menu == null) return;
+        if (!menu.tasks.isEmpty())
+            menu.tasks.forEach(task -> {
+                task.tick();
+                if (task.isFinished)
+                    menu.tasks.remove(task);
+            });
+        if (!menu.runLaters.isEmpty())
+            menu.runLaters.forEach(task -> {
+                task.tick();
+                if (task.isFinished)
+                    menu.runLaters.remove(task);
+            });
     }
 
-    public void onContainerOpen() {
+    public void onContainerOpen(PlayerEntity player) {
         MinecraftForge.EVENT_BUS.register(this);
+        if (menu != null && !menu.onOpenEvent.isEmpty()) {
+            menu.onOpenEvent.forEach(event -> event.accept(menu, player));
+        }
     }
 
     @Override
     public void onContainerClosed(@Nonnull PlayerEntity player) {
         MinecraftForge.EVENT_BUS.unregister(this);
         super.onContainerClosed(player);
+        if (menu != null && !menu.onCloseEvent.isEmpty()) {
+            menu.onCloseEvent.forEach(event -> event.accept(menu, player));
+        }
     }
 
     public int getRows() {
