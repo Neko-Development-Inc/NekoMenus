@@ -41,9 +41,10 @@ public class Menu {
     public Map<Integer, MenuItem> items;
     public List<MenuItem> emptyItems;
     public Map<String, MenuItem> referencedItems;
+    public Map<String, Object> cachedObjects;
     public List<TaskTimer> tasks;
     public List<TaskRunLater> runLaters;
-    public List<BiConsumer<Menu, PlayerEntity>> onOpenEvent, onCloseEvent;
+    public List<BiConsumer<Menu, PlayerEntity>> onOpenPreEvent, onOpenPostEvent, onCloseEvent;
 
     private CustomChestContainer chestContainer;
 
@@ -68,9 +69,11 @@ public class Menu {
         this.items = new HashMap<>();
         this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
+        this.cachedObjects = new HashMap<>();
         this.tasks = new CopyOnWriteArrayList<>();
         this.runLaters = new CopyOnWriteArrayList<>();
-        this.onOpenEvent = new ArrayList<>();
+        this.onOpenPreEvent = new ArrayList<>();
+        this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
     }
 
@@ -81,9 +84,11 @@ public class Menu {
         this.items = new HashMap<>();
         this.emptyItems = new ArrayList<>();
         this.referencedItems = new HashMap<>();
+        this.cachedObjects = new HashMap<>();
         this.tasks = new CopyOnWriteArrayList<>();
         this.runLaters = new CopyOnWriteArrayList<>();
-        this.onOpenEvent = new ArrayList<>();
+        this.onOpenPreEvent = new ArrayList<>();
+        this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
     }
 
@@ -101,7 +106,10 @@ public class Menu {
         emptyItems.forEach(item -> clone.emptyItems.add(item.clone(clone)));
 
         // Clone references
-        referencedItems.forEach((key, item) -> clone.referencedItems.put(key, item.clone(clone)));
+        referencedItems.forEach((key, item) -> {
+            var clonedItem = clone.items.get(item.slot);
+            clone.referencedItems.put(key, clonedItem);
+        });
 
         // Clone tasks
         tasks.forEach(task -> clone.tasks.add(task.clone()));
@@ -110,7 +118,8 @@ public class Menu {
         runLaters.forEach(task -> clone.runLaters.add(task.clone()));
 
         // Clone open/close event
-        clone.onOpenEvent = onOpenEvent;
+        clone.onOpenPreEvent = onOpenPreEvent;
+        clone.onOpenPostEvent = onOpenPostEvent;
         clone.onCloseEvent = onCloseEvent;
 
         return clone;
@@ -204,7 +213,14 @@ public class Menu {
     }
 
     public MenuItem getReferencedItem(String key) {
-        return this.referencedItems.get(key);
+        var ref = this.referencedItems.get(key);
+        if (ref == null)
+            for (MenuItem item : this.items.values()) {
+                var isRef = item.isReferencedItem(key);
+                if (isRef)
+                    return item;
+            }
+        return ref;
     }
 
     public Menu removeReferencedItem(String key) {
@@ -217,6 +233,38 @@ public class Menu {
             MenuItem refItem = this.referencedItems.get(key);
             if (refItem == item) {
                 return removeReferencedItem(key);
+            }
+        }
+        return this;
+    }
+
+    public Menu setCachedObject(String key, Object obj) {
+        this.cachedObjects.put(key, obj);
+        return this;
+    }
+
+    public boolean hasCachedObject(String key) {
+        return this.cachedObjects.containsKey(key);
+    }
+
+    public Object getCachedObject(String key) {
+        return this.cachedObjects.get(key);
+    }
+
+    public <T> T getCachedObject(String key, Class<T> clz) {
+        return clz.cast(this.cachedObjects.get(key));
+    }
+
+    public Menu removeCachedObject(String key) {
+        this.cachedObjects.remove(key);
+        return this;
+    }
+
+    public Menu removeCachedObjectByValue(Object obj) {
+        for (String key : new ArrayList<>(this.cachedObjects.keySet())) {
+            Object val = this.cachedObjects.get(key);
+            if (val == obj) {
+                return removeCachedObject(key);
             }
         }
         return this;
@@ -237,8 +285,14 @@ public class Menu {
         return this;
     }
 
-    public Menu addMenuOpenEvent(BiConsumer<Menu, PlayerEntity> event) {
-        this.onOpenEvent.add(event);
+    public Menu addMenuOpenPreEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenPreEvent.add(event);
+        return this;
+    }
+
+    /** Runs on a new task after 1 tick */
+    public Menu addMenuOpenPostEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenPostEvent.add(event);
         return this;
     }
 
@@ -247,8 +301,13 @@ public class Menu {
         return this;
     }
 
-    public Menu removeMenuOpenEvent(BiConsumer<Menu, PlayerEntity> event) {
-        this.onOpenEvent.remove(event);
+    public Menu removeMenuOpenPreEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenPreEvent.remove(event);
+        return this;
+    }
+
+    public Menu removeMenuOpenPostEvent(BiConsumer<Menu, PlayerEntity> event) {
+        this.onOpenPostEvent.remove(event);
         return this;
     }
 
@@ -258,21 +317,32 @@ public class Menu {
     }
 
     public INamedContainerProvider build() {
+        return build(null);
+    }
+    public INamedContainerProvider build(PlayerEntity player) {
         testItems(); // Test all item ids etc
+        if (!onOpenPreEvent.isEmpty())
+            onOpenPreEvent.forEach(event -> event.accept(this, player));
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
         for (int slot = 0, emptySlot = 0; slot < 9 * height; slot++) {
             MenuItem guiItem = items.getOrDefault(slot, !hasEmptyItems ? null : emptyItems.get((emptySlot++) % emptyItems.size()));
-            if (guiItem == null || (guiItem.itemStr == null && guiItem.item == null))
+            if (guiItem == null)
                 continue;
             guiItem.setMenu(this); // Update reference to owner
             guiItem.setReferencedItems(this); // Update missing references
-            Item item;
-            if (guiItem.item != null)
-                item = guiItem.item;
-            else
-                item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.itemStr));
-            ItemStack stack = new ItemStack(item, guiItem.amount);
+            if ((guiItem.itemStr == null && guiItem.item == null && guiItem.itemStack == null))
+                continue;
+            ItemStack stack;
+            if (guiItem.itemStack == null) {
+                Item item;
+                if (guiItem.item != null)
+                    item = guiItem.item;
+                else
+                    item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(guiItem.itemStr));
+                stack = new ItemStack(item, guiItem.amount);
+            } else
+                stack = guiItem.itemStack;
             if (guiItem.name != null && !guiItem.name.isEmpty())
                 stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
             if (!guiItem.lore.isEmpty()) {
@@ -316,7 +386,7 @@ public class Menu {
                 }
                 CustomChestContainer chestContainer = new CustomChestContainer(containerType, windowId, playerInventory, inventory, height, items, thisMenu);
                 thisMenu.setCustomChestContainer(chestContainer);
-                chestContainer.onContainerOpen(player);
+                chestContainer.onContainerOpenPost(player);
                 return chestContainer;
             }
             @Nonnull
@@ -332,11 +402,11 @@ public class Menu {
     }
 
     public void open(ServerPlayerEntity player) {
-        NekoMenus.runLater(() -> NetworkHooks.openGui(player, build()));
+        NekoMenus.runLater(() -> NetworkHooks.openGui(player, build(player)));
     }
 
     public static void open(Menu menu, ServerPlayerEntity player) {
-        NekoMenus.runLater(() -> NetworkHooks.openGui(player, menu.build()));
+        NekoMenus.runLater(() -> NetworkHooks.openGui(player, menu.build(player)));
     }
 
     public static void open(INamedContainerProvider build, ServerPlayerEntity player) {

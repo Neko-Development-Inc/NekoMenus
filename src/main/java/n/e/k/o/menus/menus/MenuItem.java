@@ -28,7 +28,7 @@ public class MenuItem {
     public boolean clickable;
     public boolean bypassMaxAmount;
     public List<String> lore;
-    private ItemStack itemStack = null;
+    public ItemStack itemStack = null;
     private final Map<ClickAction, String> actions;
     private final List<ClickAction> clickActions;
     private final Map<ClickAction, ClickActionLambda> actionLambdas;
@@ -243,6 +243,14 @@ public class MenuItem {
         return this;
     }
 
+    public boolean isReferencedItem(String key) {
+        if (this.addToReferencedList.contains(key))
+            return true;
+        if (this.menu != null)
+            return this.menu.hasReferencedItem(key) && this.menu.getReferencedItem(key) == this;
+        return false;
+    }
+
     public MenuItem removeAsReferencedItem() {
         this.menu.removeReferencedItemByValue(this);
         return this;
@@ -255,8 +263,10 @@ public class MenuItem {
 
     public void setReferencedItems(Menu menu) {
         if (!addToReferencedList.isEmpty()) {
-            addToReferencedList.forEach(key -> menu.setReferencedItem(key, this));
-            addToReferencedList.clear();
+            addToReferencedList.forEach(key -> {
+                if (!menu.hasReferencedItem(key))
+                    menu.setReferencedItem(key, this);
+            });
         }
     }
 

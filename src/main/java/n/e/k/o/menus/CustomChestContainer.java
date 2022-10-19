@@ -67,10 +67,9 @@ public class CustomChestContainer extends ChestContainer {
             });
     }
 
-    public void onContainerOpen(PlayerEntity player) {
-        MinecraftForge.EVENT_BUS.register(this);
-        if (menu != null && !menu.onOpenEvent.isEmpty()) {
-            menu.onOpenEvent.forEach(event -> event.accept(menu, player));
+    public void onContainerOpenPost(PlayerEntity player) {
+        if (menu != null && !menu.onOpenPostEvent.isEmpty()) {
+            menu.onOpenPostEvent.forEach(event -> event.accept(menu, player));
         }
     }
 
