@@ -2,13 +2,20 @@ package n.e.k.o.menus.menus;
 
 import n.e.k.o.menus.actions.ClickAction;
 import n.e.k.o.menus.actions.ClickActionLambda;
+import n.e.k.o.menus.utils.StringColorUtils;
 import n.e.k.o.menus.utils.Utils;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.container.ClickType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.nbt.StringNBT;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.IFormattableTextComponent;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
@@ -65,11 +72,20 @@ public class MenuItem {
         var regName = item.getRegistryName();
         this.itemStr = regName == null ? null : regName.toString();
         this.item = item;
+        if (this.itemStack != null) {
+            this.itemStack = new ItemStack(this.item, this.amount);
+        }
         return this;
     }
 
     public MenuItem setItem(String itemStr) {
         this.itemStr = itemStr;
+        if (this.item != null) {
+            this.item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemStr));
+            if (this.itemStack != null) {
+                this.itemStack = new ItemStack(this.item, this.amount);
+            }
+        }
         return this;
     }
 
@@ -80,6 +96,9 @@ public class MenuItem {
 
     public MenuItem setName(String name) {
         this.name = name;
+        if (this.itemStack != null) {
+            this.itemStack.setDisplayName(StringColorUtils.getColoredString(name));
+        }
         return this;
     }
 
@@ -171,22 +190,39 @@ public class MenuItem {
 
     public MenuItem addLore(String lore) {
         this.lore.add(lore);
+        updateLore();
         return this;
     }
 
     public MenuItem setLore(String lore) {
         this.lore = new ArrayList<>(Collections.singletonList(lore));
+        updateLore();
         return this;
     }
 
     public MenuItem addLore(List<String> lore) {
         this.lore.addAll(lore);
+        updateLore();
         return this;
     }
 
     public MenuItem setLore(List<String> lore) {
         this.lore = new ArrayList<>(lore);
+        updateLore();
         return this;
+    }
+
+    public void updateLore() {
+        if (this.itemStack != null) {
+            CompoundNBT display = this.itemStack.getOrCreateChildTag("display");
+            ListNBT loreNbt = new ListNBT();
+            for (String str : this.lore) {
+                IFormattableTextComponent colored = StringColorUtils.getColoredString(str);
+                String json = ITextComponent.Serializer.toJson(colored);
+                loreNbt.add(StringNBT.valueOf(json));
+            }
+            display.put("Lore", loreNbt);
+        }
     }
 
     public MenuItem setItemStack(ItemStack itemStack) {
