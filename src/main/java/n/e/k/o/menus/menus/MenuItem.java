@@ -29,6 +29,7 @@ public class MenuItem {
     public boolean bypassMaxAmount;
     public List<String> lore;
     public ItemStack itemStack = null;
+    public CompoundNBT nbt = null;
     private final Map<ClickAction, String> actions;
     private final List<ClickAction> clickActions;
     private final Map<ClickAction, ClickActionLambda> actionLambdas;
@@ -203,6 +204,18 @@ public class MenuItem {
         } else {
             return 64;
         }
+    }
+
+    public MenuItem setUnique() {
+        var uuid = UUID.randomUUID();
+        if (this.nbt == null) {
+            this.nbt = new CompoundNBT();
+        }
+        this.nbt.putUniqueId("uuid", uuid);
+        if (this.itemStack != null) {
+            this.itemStack.setTagInfo("unique", this.nbt.get("uuid"));
+        }
+        return this;
     }
 
     public MenuItem setAction(ClickAction key, String action) {
@@ -389,10 +402,14 @@ public class MenuItem {
         clone.bypassMaxAmount = bypassMaxAmount;
         clone.lore = lore;
 
-        if (itemStack != null)
+        if (itemStack != null) {
             clone.itemStack = itemStack.copy();
+        }
         else
             clone.itemStack = null;
+
+        if (nbt != null)
+            clone.setUnique();
 
         clone.actions.putAll(actions);
         clone.clickActions.addAll(clickActions);

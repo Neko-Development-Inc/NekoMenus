@@ -30,6 +30,7 @@ import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class Menu {
@@ -44,7 +45,8 @@ public class Menu {
     public Map<String, Object> cachedObjects;
     public List<TaskTimer> tasks;
     public List<TaskRunLater> runLaters;
-    public List<BiConsumer<Menu, PlayerEntity>> onOpenPreEvent, onOpenPostEvent, onCloseEvent;
+    public BiFunction<Menu, PlayerEntity, Boolean> onOpenPreEvent;
+    public List<BiConsumer<Menu, PlayerEntity>> onOpenPostEvent, onCloseEvent;
 
     private CustomChestContainer chestContainer;
 
@@ -72,7 +74,6 @@ public class Menu {
         this.cachedObjects = new HashMap<>();
         this.tasks = new CopyOnWriteArrayList<>();
         this.runLaters = new CopyOnWriteArrayList<>();
-        this.onOpenPreEvent = new ArrayList<>();
         this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
     }
@@ -87,7 +88,6 @@ public class Menu {
         this.cachedObjects = new HashMap<>();
         this.tasks = new CopyOnWriteArrayList<>();
         this.runLaters = new CopyOnWriteArrayList<>();
-        this.onOpenPreEvent = new ArrayList<>();
         this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
     }
@@ -247,6 +247,10 @@ public class Menu {
         return this.cachedObjects.containsKey(key);
     }
 
+    public <T> boolean hasCachedObject(String key, Class<T> obj) {
+        return this.cachedObjects.containsKey(key) && obj.isInstance(this.cachedObjects.get(key));
+    }
+
     public Object getCachedObject(String key) {
         return this.cachedObjects.get(key);
     }
@@ -285,8 +289,8 @@ public class Menu {
         return this;
     }
 
-    public Menu addMenuOpenPreEvent(BiConsumer<Menu, PlayerEntity> event) {
-        this.onOpenPreEvent.add(event);
+    public Menu setMenuOpenPreEvent(BiFunction<Menu, PlayerEntity, Boolean> event) {
+        this.onOpenPreEvent = event;
         return this;
     }
 
@@ -301,8 +305,8 @@ public class Menu {
         return this;
     }
 
-    public Menu removeMenuOpenPreEvent(BiConsumer<Menu, PlayerEntity> event) {
-        this.onOpenPreEvent.remove(event);
+    public Menu removeMenuOpenPreEvent() {
+        this.onOpenPreEvent = null;
         return this;
     }
 
@@ -321,8 +325,8 @@ public class Menu {
     }
     public INamedContainerProvider build(PlayerEntity player) {
         testItems(); // Test all item ids etc
-        if (!onOpenPreEvent.isEmpty())
-            onOpenPreEvent.forEach(event -> event.accept(this, player));
+        if (onOpenPreEvent != null && !onOpenPreEvent.apply(this, player))
+            return null;
         Inventory inventory = new Inventory(9 * height);
         boolean hasEmptyItems = !emptyItems.isEmpty();
         for (int slot = 0, emptySlot = 0; slot < 9 * height; slot++) {
@@ -343,6 +347,8 @@ public class Menu {
                 stack = new ItemStack(item, guiItem.amount);
             } else
                 stack = guiItem.itemStack;
+            if (guiItem.nbt != null && guiItem.nbt.hasUniqueId("uuid"))
+                stack.setTagInfo("unique", guiItem.nbt.get("uuid"));
             if (guiItem.name != null && !guiItem.name.isEmpty())
                 stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
             if (!guiItem.lore.isEmpty()) {
@@ -402,14 +408,21 @@ public class Menu {
     }
 
     public void open(ServerPlayerEntity player) {
-        NekoMenus.runLater(() -> NetworkHooks.openGui(player, build(player)));
+        NekoMenus.runLater(() -> {
+            var built = build(player);
+            if (built != null) NetworkHooks.openGui(player, built);
+        });
     }
 
     public static void open(Menu menu, ServerPlayerEntity player) {
-        NekoMenus.runLater(() -> NetworkHooks.openGui(player, menu.build(player)));
+        NekoMenus.runLater(() -> {
+            var built = menu.build(player);
+            if (built != null) NetworkHooks.openGui(player, built);
+        });
     }
 
     public static void open(INamedContainerProvider build, ServerPlayerEntity player) {
+        if (build == null) return;
         NekoMenus.runLater(() -> NetworkHooks.openGui(player, build));
     }
 

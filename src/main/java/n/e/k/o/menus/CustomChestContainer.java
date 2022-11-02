@@ -42,8 +42,11 @@ public class CustomChestContainer extends ChestContainer {
         // Execute click event, if it exists for this slot
         if (items.containsKey(slotId)) {
             MenuItem guiItem = items.get(slotId);
-            if (guiItem != null && guiItem.clickable)
+            if (guiItem != null && guiItem.clickable) {
                 guiItem.slotClick(slotId, dragType, clickType, player, menu);
+                if (guiItem.nbt != null)
+                    guiItem.setUnique();
+            }
         }
 
         return deny;
@@ -52,18 +55,19 @@ public class CustomChestContainer extends ChestContainer {
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        if (menu == null) return;
-        if (!menu.tasks.isEmpty())
-            menu.tasks.forEach(task -> {
+        var _menu = menu; // For performance
+        if (_menu == null) return;
+        if (!_menu.tasks.isEmpty())
+            _menu.tasks.forEach(task -> {
                 task.tick();
                 if (task.isFinished)
-                    menu.tasks.remove(task);
+                    _menu.tasks.remove(task);
             });
-        if (!menu.runLaters.isEmpty())
-            menu.runLaters.forEach(task -> {
+        if (!_menu.runLaters.isEmpty())
+            _menu.runLaters.forEach(task -> {
                 task.tick();
                 if (task.isFinished)
-                    menu.runLaters.remove(task);
+                    _menu.runLaters.remove(task);
             });
     }
 
