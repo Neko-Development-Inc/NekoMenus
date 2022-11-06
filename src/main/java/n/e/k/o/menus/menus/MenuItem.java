@@ -34,6 +34,7 @@ public class MenuItem {
     public boolean clickable;
     public boolean bypassMaxAmount;
     public boolean hiddenName;
+    public boolean hiddenNameIfNull;
     public List<String> lore;
     public ItemStack itemStack = null;
     public CompoundNBT nbt = null;
@@ -44,6 +45,10 @@ public class MenuItem {
 
     public static MenuItem builder() {
         return new MenuItem(null, null);
+    }
+
+    public static MenuItem hidden() {
+        return new MenuItem(null, null).setHiddenName();
     }
 
     public static MenuItem builder(Menu menu) {
@@ -188,8 +193,23 @@ public class MenuItem {
         return this;
     }
 
+    public MenuItem setHiddenName() {
+        this.hiddenName = true;
+        return this;
+    }
+
     public MenuItem setHiddenName(boolean hiddenName) {
         this.hiddenName = hiddenName;
+        return this;
+    }
+
+    public MenuItem setHiddenNameIfNull() {
+        this.hiddenNameIfNull = true;
+        return this;
+    }
+
+    public MenuItem setHiddenNameIfNull(boolean hiddenNameIfNull) {
+        this.hiddenNameIfNull = hiddenNameIfNull;
         return this;
     }
 
@@ -442,6 +462,7 @@ public class MenuItem {
         clone.clickable = clickable;
         clone.bypassMaxAmount = bypassMaxAmount;
         clone.hiddenName = hiddenName;
+        clone.hiddenNameIfNull = hiddenNameIfNull;
         clone.lore = lore;
 
         if (itemStack != null) {

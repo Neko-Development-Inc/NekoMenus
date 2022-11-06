@@ -368,7 +368,7 @@ public class Menu {
                 }
                 display.put("Lore", lore);
             }
-            if (guiItem.hiddenName) {
+            if (guiItem.hiddenName || (guiItem.name == null && guiItem.hiddenNameIfNull)) {
                 var tag = stack.getOrCreateTag();
                 tag.putString("tooltip", "");
                 tag.putInt("HideFlags", 127);
