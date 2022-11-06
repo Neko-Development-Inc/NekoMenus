@@ -47,7 +47,7 @@ public class MenuItem {
         return new MenuItem(null, null);
     }
 
-    public static MenuItem hidden() {
+    public static MenuItem hiddenName() {
         return new MenuItem(null, null).setHiddenName();
     }
 
