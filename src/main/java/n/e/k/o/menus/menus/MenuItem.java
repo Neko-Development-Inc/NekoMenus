@@ -14,7 +14,6 @@ import net.minecraft.nbt.StringNBT;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.Logger;
 
@@ -34,6 +33,7 @@ public class MenuItem {
     public int slot;
     public boolean clickable;
     public boolean bypassMaxAmount;
+    public boolean hiddenName;
     public List<String> lore;
     public ItemStack itemStack = null;
     public CompoundNBT nbt = null;
@@ -185,6 +185,11 @@ public class MenuItem {
 
     public MenuItem setBypassMaxAmount(boolean bypassMaxAmount) {
         this.bypassMaxAmount = bypassMaxAmount;
+        return this;
+    }
+
+    public MenuItem setHiddenName(boolean hiddenName) {
+        this.hiddenName = hiddenName;
         return this;
     }
 
@@ -436,6 +441,7 @@ public class MenuItem {
         clone.slot = slot;
         clone.clickable = clickable;
         clone.bypassMaxAmount = bypassMaxAmount;
+        clone.hiddenName = hiddenName;
         clone.lore = lore;
 
         if (itemStack != null) {

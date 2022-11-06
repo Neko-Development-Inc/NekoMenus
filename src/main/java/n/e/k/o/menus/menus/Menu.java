@@ -23,11 +23,15 @@ import net.minecraft.network.play.server.SSetSlotPacket;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.fml.network.NetworkHooks;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nonnull;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -54,6 +58,9 @@ public class Menu {
         return new Menu();
     }
 
+    public static Menu builder(int height) {
+        return new Menu("", "", height);
+    }
     public static Menu builder(String title, int height) {
         return new Menu("", title, height);
     }
@@ -349,8 +356,8 @@ public class Menu {
                 stack = guiItem.itemStack;
             if (guiItem.nbt != null && guiItem.nbt.hasUniqueId("uuid"))
                 stack.setTagInfo("unique", guiItem.nbt.get("uuid"));
-            if (guiItem.name != null && !guiItem.name.isEmpty())
-                stack.setDisplayName(StringColorUtils.getColoredString(guiItem.name));
+            if (guiItem.name != null && !guiItem.hiddenName)
+                stack.setDisplayName(guiItem.name.isEmpty() ? StringTextComponent.EMPTY : StringColorUtils.getColoredString(guiItem.name));
             if (!guiItem.lore.isEmpty()) {
                 CompoundNBT display = stack.getOrCreateChildTag("display");
                 ListNBT lore = new ListNBT();
@@ -360,6 +367,13 @@ public class Menu {
                     lore.add(StringNBT.valueOf(json));
                 }
                 display.put("Lore", lore);
+            }
+            if (guiItem.hiddenName) {
+                var tag = stack.getOrCreateTag();
+                tag.putString("tooltip", "");
+                tag.putInt("HideFlags", 127);
+                // Overwrite any existing displayName!
+                stack.setDisplayName(StringTextComponent.EMPTY);
             }
             guiItem.setItemStack(stack);
             inventory.setInventorySlotContents(slot, stack);
