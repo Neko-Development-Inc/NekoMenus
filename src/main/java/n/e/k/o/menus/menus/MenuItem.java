@@ -1,5 +1,6 @@
 package n.e.k.o.menus.menus;
 
+import n.e.k.o.menus.NekoMenus;
 import n.e.k.o.menus.actions.ClickAction;
 import n.e.k.o.menus.actions.ClickActionLambda;
 import n.e.k.o.menus.utils.StringColorUtils;
@@ -71,6 +72,9 @@ public class MenuItem {
         this.clickActions = new ArrayList<>();
         this.actionLambdas = new HashMap<>();
         this.addToReferencedList = new ArrayList<>();
+        if (!NekoMenus.isEnabled) {
+            throw new IllegalStateException("NekoMenus is disabled.");
+        }
     }
 
     public MenuItem setItem(Item item) {

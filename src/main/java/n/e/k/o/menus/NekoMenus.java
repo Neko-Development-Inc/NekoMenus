@@ -1,5 +1,6 @@
 package n.e.k.o.menus;
 
+import n.e.k.o.menus.utils.GlobalConfig;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -18,7 +19,14 @@ public class NekoMenus {
 
     private static final Queue<Runnable> runLaterQueue = new ConcurrentLinkedQueue<>();
 
+    public static boolean isEnabled = false;
+
     public NekoMenus() {
+        if (!GlobalConfig.checkEnabled("NekoMenus", logger)) {
+            logger.warn("Disabling NekoMenus.");
+            return;
+        }
+        isEnabled = true;
         MinecraftForge.EVENT_BUS.register(this);
     }
 

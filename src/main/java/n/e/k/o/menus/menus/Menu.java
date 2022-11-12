@@ -28,6 +28,8 @@ import net.minecraftforge.fml.network.NetworkHooks;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,19 +72,11 @@ public class Menu {
     }
 
     public Menu() {
-        this("");
+        this("", "", 3);
     }
 
     public Menu(String id) {
-        this.id = id;
-        this.items = new HashMap<>();
-        this.emptyItems = new ArrayList<>();
-        this.referencedItems = new HashMap<>();
-        this.cachedObjects = new HashMap<>();
-        this.tasks = new CopyOnWriteArrayList<>();
-        this.runLaters = new CopyOnWriteArrayList<>();
-        this.onOpenPostEvent = new ArrayList<>();
-        this.onCloseEvent = new ArrayList<>();
+        this(id, "", 3);
     }
 
     public Menu(String id, String title, int height) {
@@ -97,6 +91,9 @@ public class Menu {
         this.runLaters = new CopyOnWriteArrayList<>();
         this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
+        if (!NekoMenus.isEnabled) {
+            throw new IllegalStateException("NekoMenus is disabled.");
+        }
     }
 
     /**
@@ -327,10 +324,16 @@ public class Menu {
         return this;
     }
 
+    @Nullable
     public INamedContainerProvider build() {
         return build(null);
     }
+    @Nullable
     public INamedContainerProvider build(PlayerEntity player) {
+        if (!NekoMenus.isEnabled) {
+            System.err.println("NekoMenus is disabled.");
+            return null;
+        }
         testItems(); // Test all item ids etc
         if (onOpenPreEvent != null && !onOpenPreEvent.apply(this, player))
             return null;
@@ -374,6 +377,11 @@ public class Menu {
                 tag.putInt("HideFlags", 127);
                 // Overwrite any existing displayName!
                 stack.setDisplayName(StringTextComponent.EMPTY);
+
+                var registryName = stack.getItem().getRegistryName() + "";
+                if (!registryName.equals("pixelmon:ui_element")) {
+
+                }
             }
             guiItem.setItemStack(stack);
             inventory.setInventorySlotContents(slot, stack);
@@ -422,6 +430,10 @@ public class Menu {
     }
 
     public void open(ServerPlayerEntity player) {
+        if (!NekoMenus.isEnabled) {
+            System.err.println("NekoMenus is disabled.");
+            return;
+        }
         NekoMenus.runLater(() -> {
             var built = build(player);
             if (built != null) NetworkHooks.openGui(player, built);
@@ -429,6 +441,10 @@ public class Menu {
     }
 
     public static void open(Menu menu, ServerPlayerEntity player) {
+        if (!NekoMenus.isEnabled) {
+            System.err.println("NekoMenus is disabled.");
+            return;
+        }
         NekoMenus.runLater(() -> {
             var built = menu.build(player);
             if (built != null) NetworkHooks.openGui(player, built);
@@ -436,6 +452,10 @@ public class Menu {
     }
 
     public static void open(INamedContainerProvider build, ServerPlayerEntity player) {
+        if (!NekoMenus.isEnabled) {
+            System.err.println("NekoMenus is disabled.");
+            return;
+        }
         if (build == null) return;
         NekoMenus.runLater(() -> NetworkHooks.openGui(player, build));
     }
