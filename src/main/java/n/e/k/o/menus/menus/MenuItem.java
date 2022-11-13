@@ -72,9 +72,6 @@ public class MenuItem {
         this.clickActions = new ArrayList<>();
         this.actionLambdas = new HashMap<>();
         this.addToReferencedList = new ArrayList<>();
-        if (!NekoMenus.isEnabled) {
-            throw new IllegalStateException("NekoMenus is disabled.");
-        }
     }
 
     public MenuItem setItem(Item item) {

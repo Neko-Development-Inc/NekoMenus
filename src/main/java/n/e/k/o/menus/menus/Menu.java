@@ -91,9 +91,6 @@ public class Menu {
         this.runLaters = new CopyOnWriteArrayList<>();
         this.onOpenPostEvent = new ArrayList<>();
         this.onCloseEvent = new ArrayList<>();
-        if (!NekoMenus.isEnabled) {
-            throw new IllegalStateException("NekoMenus is disabled.");
-        }
     }
 
     /**
@@ -330,10 +327,6 @@ public class Menu {
     }
     @Nullable
     public INamedContainerProvider build(PlayerEntity player) {
-        if (!NekoMenus.isEnabled) {
-            System.err.println("NekoMenus is disabled.");
-            return null;
-        }
         testItems(); // Test all item ids etc
         if (onOpenPreEvent != null && !onOpenPreEvent.apply(this, player))
             return null;
@@ -430,10 +423,6 @@ public class Menu {
     }
 
     public void open(ServerPlayerEntity player) {
-        if (!NekoMenus.isEnabled) {
-            System.err.println("NekoMenus is disabled.");
-            return;
-        }
         NekoMenus.runLater(() -> {
             var built = build(player);
             if (built != null) NetworkHooks.openGui(player, built);
@@ -441,10 +430,6 @@ public class Menu {
     }
 
     public static void open(Menu menu, ServerPlayerEntity player) {
-        if (!NekoMenus.isEnabled) {
-            System.err.println("NekoMenus is disabled.");
-            return;
-        }
         NekoMenus.runLater(() -> {
             var built = menu.build(player);
             if (built != null) NetworkHooks.openGui(player, built);
@@ -452,10 +437,6 @@ public class Menu {
     }
 
     public static void open(INamedContainerProvider build, ServerPlayerEntity player) {
-        if (!NekoMenus.isEnabled) {
-            System.err.println("NekoMenus is disabled.");
-            return;
-        }
         if (build == null) return;
         NekoMenus.runLater(() -> NetworkHooks.openGui(player, build));
     }
