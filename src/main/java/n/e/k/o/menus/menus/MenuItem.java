@@ -1,6 +1,5 @@
 package n.e.k.o.menus.menus;
 
-import n.e.k.o.menus.NekoMenus;
 import n.e.k.o.menus.actions.ClickAction;
 import n.e.k.o.menus.actions.ClickActionLambda;
 import n.e.k.o.menus.utils.StringColorUtils;
@@ -32,6 +31,7 @@ public class MenuItem {
     public int minAmount = 1;
     public int maxAmount = 64;
     public int slot;
+    public boolean allowSlotModification;
     public boolean clickable;
     public boolean bypassMaxAmount;
     public boolean hiddenName;
@@ -91,6 +91,14 @@ public class MenuItem {
             if (this.itemStack != null) {
                 this.itemStack = new ItemStack(this.item, this.amount);
             }
+        }
+        return this;
+    }
+
+    public MenuItem allowSlotModification() {
+        this.allowSlotModification = true;
+        if (this.menu != null) {
+            this.menu.allowSlotModification(this.slot);
         }
         return this;
     }

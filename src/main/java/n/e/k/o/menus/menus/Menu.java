@@ -29,7 +29,6 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +46,7 @@ public class Menu {
 
     public Map<Integer, MenuItem> items;
     public List<MenuItem> emptyItems;
+    public List<Integer> allowsSlotModification;
     public Map<String, MenuItem> referencedItems;
     public Map<String, Object> cachedObjects;
     public List<TaskTimer> tasks;
@@ -85,6 +85,7 @@ public class Menu {
         this.height = height;
         this.items = new HashMap<>();
         this.emptyItems = new ArrayList<>();
+        this.allowsSlotModification = new ArrayList<>();
         this.referencedItems = new HashMap<>();
         this.cachedObjects = new HashMap<>();
         this.tasks = new CopyOnWriteArrayList<>();
@@ -105,6 +106,9 @@ public class Menu {
 
         // Clone empty items
         emptyItems.forEach(item -> clone.emptyItems.add(item.clone(clone)));
+
+        // Clone allowsModification
+        clone.allowsSlotModification.addAll(allowsSlotModification);
 
         // Clone references
         referencedItems.forEach((key, item) -> {
@@ -153,6 +157,22 @@ public class Menu {
         if (this.chestContainer != null && stack != null) {
             this.chestContainer.putStackInSlot(item.slot, stack);
         }
+        return this;
+    }
+
+    public Menu allowSlotModification(int... slots) {
+        for (int slot : slots)
+            this.allowsSlotModification.add(slot);
+        return this;
+    }
+
+    public Menu allowSlotModification(int x, int y) {
+        this.allowsSlotModification.add(Utils.gridToSlot(x, y));
+        return this;
+    }
+
+    public Menu allowSlotModification(MenuItem item) {
+        this.allowsSlotModification.add(item.slot);
         return this;
     }
 
@@ -338,6 +358,8 @@ public class Menu {
                 continue;
             guiItem.setMenu(this); // Update reference to owner
             guiItem.setReferencedItems(this); // Update missing references
+            if (guiItem.allowSlotModification && !allowsSlotModification.contains(guiItem.slot))
+                allowsSlotModification.add(guiItem.slot);
             if ((guiItem.itemStr == null && guiItem.item == null && guiItem.itemStack == null))
                 continue;
             ItemStack stack;

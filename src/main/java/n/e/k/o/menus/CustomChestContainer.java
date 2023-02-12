@@ -49,6 +49,12 @@ public class CustomChestContainer extends ChestContainer {
             }
         }
 
+        // Check if we can modify item in slot
+        if (menu.allowsSlotModification.contains(slotId)) {
+            // Allow modification in chest menu
+            return super.slotClick(slotId, dragType, clickType, player);
+        }
+
         return deny;
     }
 
