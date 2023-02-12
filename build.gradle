@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'n.e.k.o'
-version = '1.0.2-DEV'
+version = '1.0.3-DEV'
 
 java {
     archivesBaseName = 'NekoMenus'
